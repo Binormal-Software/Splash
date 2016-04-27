@@ -21,18 +21,19 @@ public class ChatServerUI implements Initializable {
 	
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
-		
+		// not really needed but whatever
 	}
 
 	public void setWindow(Stage mainWindow){
 		this.mainWindow = mainWindow;
 	}
-	
 	public void setOwner(ChatServer chatServer){
 		this.chatServer = chatServer;
 	}
 	
-	
+	/**
+	 * Print text into console and perhaps server window
+	 */
 	public void printText(String message){
     	
     	
@@ -46,15 +47,21 @@ public class ChatServerUI implements Initializable {
     	
     	
     }
-	
+	/**
+	 * Get rid of window. Good luck getting it back
+	 */
 	public void hideWindow(){
     	mainWindow.hide();
     }
-    
+	/**
+	 * I wonder what this one does...
+	 */
     public void clearLog(){
     	serverLog.clear();
     }
-    
+    /**
+	 * Start/Stop server
+	 */
     public void toggleServer(){
     	if(chatServer.serverStopped){
 			chatServer.startServer();
@@ -64,7 +71,9 @@ public class ChatServerUI implements Initializable {
 			toggleButton.setText("Start Server");
 		}
     }
-	
+    /**
+	 * Pass command to server and clear box
+	 */
     public void processInput(){
     	chatServer.processInput(commandBox.getText());
     	commandBox.clear();

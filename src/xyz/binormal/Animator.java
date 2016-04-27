@@ -13,14 +13,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+/**
+ * Animations all day!
+ * @author Ryan Rodriguez
+ */
 public class Animator implements ChangeListener<Number>, ListChangeListener<Node> { 
 
 	private int animationDuration = 300;
 	private Map<Node, TranslateTransition> nodeXTransitions = new HashMap<>();
 	private Map<Node, TranslateTransition> nodeYTransitions = new HashMap<>();
 
-	/* sweet animation for children of any node.
+	/** sweet animation for children of any node.
 	*  used examples from javaFX documentation and stackoverflow to get it working
 	*/
 	

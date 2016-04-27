@@ -58,8 +58,14 @@
 }
 
 #status-label{
+	-fx-font-family: "Segoe UI";
 	-fx-text-fill: #ffffff;
 	-fx-font-size: 12pt;
+}
+
+#intro-label{
+	-fx-text-fill: #005f9e;
+	-fx-font-size: 18pt;
 }
 
 #sender-message{
