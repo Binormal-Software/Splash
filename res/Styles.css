@@ -68,6 +68,11 @@
 	-fx-font-size: 18pt;
 }
 
+#message-label{
+	-fx-text-wrap: true;
+	-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 2, 0, 0, 2);
+}
+
 #sender-message{
 	-fx-background-color: white;
 	-fx-text-fill: #333333;
@@ -94,6 +99,7 @@
 	-fx-background-color: #005f9e;
 	-fx-text-fill: #ffffff;
 	-fx-prompt-text-fill: #1c9cf2;
+
 }
 
 .button {

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane fx:id="borderWindow" style="-fx-background-color: #1c9cf2;" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="480.0" prefWidth="480.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xyz.binormal.ChatClientUI" >
+
+	<HBox fx:id="headerPane" id="header-pane" alignment="center" minHeight="40">
+		<Label fx:id="statusLabel" id="status-label" wrapText="true" />
+	</HBox>
+
+	<VBox fx:id="sideBar">
+		<Button onAction="#handleSearchAgain" text="Disconnect" />
+	</VBox>
+
+	<VBox fx:id="loadingPane" BorderPane.alignment="CENTER" style="-fx-background-color: #1c9cf2;">
+		<ImageView fitHeight="360.0" fitWidth="480.0">     
+   			<image>
+      			<Image url="@loading.gif" />
+   			</image>
+		</ImageView>
+	</VBox>
+
+	<ScrollPane fx:id="chatPane">
+		<content>
+			<VBox fx:id="chatArea" prefWidth="${chatPane.width-20}" />
+		</content>
+	</ScrollPane>
+
+	<HBox fx:id="messageHBox" alignment="center" >
+		<padding><Insets top="5" right="5" bottom="3" left="5"/></padding>
+		<TextField fx:id="messageTextField" prefWidth="${borderWindow.width-100}" onAction="#handleMessageSend" promptText="Enter a message" />
+		<Button onAction="#handleMessageSend" text="Send" />
+	</HBox>
+	
+	<HBox fx:id="usernameHBox" alignment="center" >
+		<padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+		<TextField fx:id="usernameTextField" prefWidth="${borderWindow.width*0.6}" onAction="#handleUsername" promptText="Enter a username" />
+		<Button onAction="#handleUsername" text="OK" />
+		<Button onAction="#handleSearchAgain" text="Cancel" />
+	</HBox>
+	
+	<VBox fx:id="retryPane">
+		<padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+		<TextField fx:id="ipTextField" promptText="IP address, if known" />
+		<HBox>
+			<padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+			<Button onAction="#handleSearchAgain" text="Search Again" />
+			<Button onAction="#handleDirectConnect" text="Connect Manually" />
+		</HBox>
+	</VBox>
+
+</BorderPane>

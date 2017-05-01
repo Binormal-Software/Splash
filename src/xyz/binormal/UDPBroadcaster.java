@@ -3,6 +3,8 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * <p>Class used to broadcast a UDP packet to all addresses in a specific range.</p>
@@ -16,11 +18,10 @@ public class UDPBroadcaster{
     private InetAddress host;
     private DatagramSocket socket;
     private DatagramPacket packet;
-    private String data;
     
-    public InetAddress findAddress(int port, InetAddress hostAddress, int timeout) throws IOException{
+    public List<SplashPool> findAddresses(int port, InetAddress hostAddress, int timeout) throws IOException{
     	socketTimeout = timeout;
-    	return findAddress(port, hostAddress);
+    	return findAddresses(port, hostAddress);
     }
     
     /**
@@ -30,7 +31,7 @@ public class UDPBroadcaster{
      * @return address found by scan
      * @throws IOException
      */
-    public InetAddress findAddress(int port, InetAddress hostAddress) throws IOException{
+    public List<SplashPool> findAddresses(int port, InetAddress hostAddress) throws IOException{
 
     	String hostPrefix = hostAddress.getHostAddress();
     	hostPrefix = hostPrefix.substring(0, hostPrefix.lastIndexOf('.'));
@@ -43,16 +44,30 @@ public class UDPBroadcaster{
     	socket.send (packet);
     	
     	packet.setLength(36);
-    	socket.receive (packet);
+    	
+    	List<SplashPool> addressList = new ArrayList<SplashPool>();
+    	
+    	for(int i = 0; i < 5; i++){
+    		try{
+    			socket.receive(packet);
+    			String[] packetData = new String(packet.getData()).split(":");
+    			
+    			if(!packetData[0].equals(Globals.HANDSHAKE_MSG))
+    				throw new IllegalArgumentException();
+    			
+    			addressList.add(new SplashPool(packet.getAddress(), packetData[2], packetData[1]));
+    			System.out.println("Got reply from " + packet.getAddress() + ". Server app version " + packetData[1]);
+    		}catch(IOException ioe){
+    			System.out.println("No reply that time...");
+    		}catch(IllegalArgumentException iae){
+    			System.out.println("Recieved a malformed response from " + packet.getAddress() + ", could it be an outdated version?");
+    		}
+    	}
+    	
     	socket.close();
 
-    	data = new String(packet.getData());
-    	return packet.getAddress();
-
+    	return addressList;
 
     }
-    
-    public String getData(){
-    	return data;
-    }
+ 
 }

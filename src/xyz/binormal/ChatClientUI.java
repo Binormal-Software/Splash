@@ -1,109 +1,188 @@
 package xyz.binormal;
 
+import java.net.InetAddress;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.List;
+import java.util.ResourceBundle;
+
 import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
 import javafx.animation.ScaleTransition;
 import javafx.animation.Transition;
 import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
-import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
 /**
  * UI Controller for ChatClient.
  */
-public class ChatClientUI {
-
-
-	// UI Controls
-	private Label statusLabel;
-	private VBox chatArea;
-	private ScrollPane chatAreaBox;
-	private BorderPane mainWindow;
-	private VBox loadingPane;
-	private VBox introPane;
-	private HBox textBox;
-	private HBox headerPane;
-	private ScrollPane chatPane;
-	private Scene mainScene;
+public class ChatClientUI implements Initializable{
+	
+	
+	// new UI controls
+	
+	@FXML BorderPane borderWindow;
+	@FXML ScrollPane chatPane;
+	@FXML VBox loadingPane;
+	@FXML VBox chatArea;
+	@FXML VBox sideBar;
+	@FXML VBox retryPane;
+	@FXML HBox headerPane;
+	@FXML HBox messageHBox;
+	@FXML HBox usernameHBox;
+	@FXML Label statusLabel;
+	@FXML TextField messageTextField;
+	@FXML TextField usernameTextField;
+	@FXML TextField ipTextField;
 	
 	private String lastSender = "";
-	private ChatClient client;
+	//private Stage mainWindow;
+	private ChatClient chatClient;
+	
+
+	@Override
+	public void initialize(URL location, ResourceBundle resources) {
+	
+	}
+	
+	public void setWindow(Stage mainWindow){
+		//this.mainWindow = mainWindow;
+		borderWindow.getChildren().clear();
+		attachNode(headerPane, "top");
+		applyInOutTransition(loadingPane);
+		chatArea.heightProperty().addListener((observable, oldVal, newVal) ->{
+            chatPane.setVvalue(((Double) newVal).doubleValue());
+        });
+	}
+	public void setOwner(ChatClient chatClient){
+		this.chatClient = chatClient;
+	}
+	
 	
 	/**
 	 * Dynamically add and remove nodes
 	 */
 	public enum SceneMode{
-		INTRO, LOADING, RETRY, TEXT_ONLY, CHAT
+		LOADING, RETRY_SEARCH, ASK_USERNAME, CHAT, NONE
 	}
-	
-	public void setSceneMode(SceneMode sceneMode){
+	public void loadScene(SceneMode sceneMode){
 		
 		switch(sceneMode){
 		
-		case INTRO: showNode(introPane, "center");  break;
+		case NONE: 
+			hideNode("center", "in"); 
+			break;
 		
-		case LOADING: showNode(loadingPane, "center");
-		hideNode("bottom", "in"); break;
+		case LOADING: 
+			showNode(loadingPane, "center");
+			hideNode("right", "in");
+			hideNode("bottom", "in"); 
+			break;
 		
-		case RETRY: hideNode("center", "in"); 
-		showNode(retryPane(client.myAddress.getHostAddress()), "bottom"); break;
+		case RETRY_SEARCH: 
+			hideNode("center", "in"); 
+			showNode(retryPane, "bottom"); 
+			break;
 		
-		case TEXT_ONLY: showNode(textBox, "bottom");
-		hideNode("center", "in"); break;
-		
-		case CHAT: showNode(textBox, "bottom");
-		showNode(chatPane, "center"); break;
+		case ASK_USERNAME: 
+			showNode(usernameHBox, "bottom");
+			hideNode("center", "in"); 
+			break;
+	
+		case CHAT: 
+			showNode(messageHBox, "bottom");
+			showNode(sideBar, "right");
+			showNode(chatPane, "center"); 
+			break;
 		
 		default: break;
 		
 		}
 		
-		
+	}
+	
+	public void showConnectionList(){
 		
 	}
 	
-	/**
-	 * Constructor
-	 */
-	public ChatClientUI(Stage primaryStage, ChatClient client){
+	public void showConnectionList(List<SplashPool> serverList){
 		
-		Font.loadFont(getClass().getResourceAsStream("/RobotoSlab.ttf"), 14);
+		printText("Testing the water...");
 		
-		this.client = client;
-		headerPane = headerPane();
-		mainWindow = mainWindow(primaryStage.widthProperty(), primaryStage.heightProperty());
-		loadingPane = loadingPane();
-		introPane = introPane();
-		textBox = textBox();
-		chatPane = chatPane();
+		VBox serverBox = new VBox();
+		serverBox.setAlignment(Pos.CENTER);
 		
-		mainScene = new Scene(mainWindow, 480, 480);
-		mainScene.getStylesheets().add("Styles.css");
+		for(SplashPool splashPool: serverList){
+			Button connectButton = new Button(
+					splashPool.getName() + " (version " + splashPool.serverVersion() + ")" 
+					+ "\r\n" + "(" + splashPool.getInetAddress().getHostAddress() + ")");
+			
+			connectButton.setPrefHeight(50);
+			connectButton.setAlignment(Pos.CENTER);
+			
+			connectButton.setOnAction(e -> {
+					chatClient.initiateConnection(splashPool.getInetAddress(), Globals.DEFAULT_PORT);
+			});
+		
+			serverBox.getChildren().add(connectButton);
+			
+		}
+		
+		Button refreshButton = new Button("Refresh");
+		refreshButton.setOnAction(e -> {
+			chatClient.initiateScan();
+		});
+		serverBox.getChildren().add(refreshButton);
+		
+		printText("Pool(s) found! Please select which to dive into:");
+		showNode(serverBox, "center");
 		
 	}
+	
 
- 	public Scene getScene(){
-		return mainScene;
-	}
+	/**
+	 * UI Controlled event handlers
+	 */
+	@FXML
+    protected void handleMessageSend(ActionEvent e) {
+        chatClient.sendMessage(messageTextField.getText());
+        messageTextField.clear();
+    }
+	@FXML
+    protected void handleUsername(ActionEvent e) {
+        chatClient.setUsername(usernameTextField.getText());
+        usernameTextField.clear();
+    }
+	@FXML
+    protected void handleSearchAgain(ActionEvent e) {
+		chatClient.disconnectFromServer();
+		chatClient.initiateScan();
+    }
+	@FXML
+    protected void handleDirectConnect(ActionEvent e) {
+		try {
+			chatClient.initiateConnection(InetAddress.getByName(ipTextField.getText()), Globals.DEFAULT_PORT);
+			ipTextField.clear();
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+		}
+    }
+	
 	
  	/**
 	 * Print message into the console and status area
@@ -124,13 +203,14 @@ public class ChatClientUI {
 
 		Platform.runLater(new Runnable() {
 			public void run() {
-				HBox messageBox = messageBox(message, sender, color, you);
+				HBox messageBox = messageBubble(message, sender, color, you);
 				chatArea.getChildren().add(messageBox);
+				
 			}
 		});
 
-
 	}
+	
 	/**
 	 * Self-explanatory
 	 */
@@ -141,14 +221,19 @@ public class ChatClientUI {
 				switch(position){
 
 				case "top":
-					mainWindow.setTop(node); break;
+					borderWindow.setTop(node); break;
 
 				case "center": 
-					mainWindow.setCenter(node); break;
+					borderWindow.setCenter(node); break;
 
 				case "bottom": 
-					mainWindow.setBottom(node); break;
+					borderWindow.setBottom(node); break;
 
+				case "left":
+					borderWindow.setLeft(node); break;
+					
+				case "right":
+					borderWindow.setRight(node); break;
 				}
 
 			}
@@ -185,9 +270,11 @@ public class ChatClientUI {
 		Node node = null;
 		switch(position){
 
-		case "top": node = mainWindow.getTop(); break;
-		case "center": node = mainWindow.getCenter(); break;
-		case "bottom": node = mainWindow.getBottom(); break;
+		case "top": node = borderWindow.getTop(); break;
+		case "center": node = borderWindow.getCenter(); break;
+		case "bottom": node = borderWindow.getBottom(); break;
+		case "left": node = borderWindow.getLeft(); break;
+		case "right": node = borderWindow.getRight(); break;
 		default: return;
 		}
 
@@ -240,52 +327,14 @@ public class ChatClientUI {
 	}
 
 
-
-
-	/**
-	 * UI Elements. TODO Convert to FXML!
-	 */
-
-	private BorderPane mainWindow
-	(ReadOnlyDoubleProperty windowWidth, ReadOnlyDoubleProperty windowHeight){
-
-		mainWindow = new BorderPane();
-		mainWindow.setId("window-dark");
-		mainWindow.prefWidthProperty().bind(windowWidth);
-		mainWindow.prefHeightProperty().bind(windowHeight);
-
-		mainWindow.setTop(headerPane);
-		headerPane.toFront();
-
-		return mainWindow;
-	}
-
-	private HBox headerPane(){
-
-		statusLabel = new Label();
-		statusLabel.setId("status-label");
-		statusLabel.setWrapText(true);
-
-		HBox headerPane = new HBox();
-		headerPane.setAlignment(Pos.CENTER);
-		headerPane.setId("header-pane");
-		headerPane.setMinHeight(40);
-		headerPane.getChildren().addAll(statusLabel);
-		//headerPane.setEffect(dropShadow());
-		statusLabel.toFront();
-		return headerPane;
-	}
-
-	private HBox messageBox(String message, String sender, Color color, boolean you){
+	private HBox messageBubble(String message, String sender, Color color, boolean you){
 
 		Label messageLabel = new Label(message);
+		messageLabel.setId("message-label");
+		messageLabel.setWrapText(true);
 		HBox.setMargin(messageLabel, new Insets(5));
 		VBox.setMargin(messageLabel, new Insets(5));
-		messageLabel.setWrapText(true);
-		messageLabel.setEffect(dropShadow());
-
-		HBox messageBox = new HBox();
-
+		
 		Color textColor;
 		if(color.getBrightness() < 1){
 			textColor = Color.WHITE;
@@ -293,20 +342,21 @@ public class ChatClientUI {
 			textColor = Color.BLACK;
 		}
 
-		messageLabel.setStyle(
-				"-fx-background-color: " + toHex(color) + "; "
-						+ "-fx-text-fill: " + toHex(textColor) + "; ");
+		messageLabel.setStyle(messageLabel.getStyle() +
+			" -fx-background-color: " + toHex(color) + "; "
+			+ "-fx-text-fill: " + toHex(textColor) + "; ");
 
+		HBox messageBox = new HBox();
+		
 		if(you){
 
 			messageBox.setAlignment(Pos.TOP_RIGHT);
-			messageLabel.setTranslateX(mainWindow.getWidth() + 50);
+			messageLabel.setTranslateX(borderWindow.getWidth() + 50);
 			messageLabel.setTranslateY(20);
 
 			messageBox.getChildren().add(messageLabel);
 
 		}else{
-
 
 			messageBox.setAlignment(Pos.TOP_LEFT);
 			messageLabel.setTranslateX(-50);
@@ -315,187 +365,22 @@ public class ChatClientUI {
 			if(!lastSender.equals(sender)){
 
 				VBox container = new VBox();
-
 				Label senderLabel = new Label(sender + ":");
 				senderLabel.setId("sender-label");
 
 				container.getChildren().addAll(senderLabel, messageLabel);
 				messageBox.getChildren().add(container);
 			}else{
-
 				messageBox.getChildren().add(messageLabel);
 			}
 		}
 
 		lastSender = sender;
 
-
 		new Animator().addAnimation(messageLabel);
 		return messageBox;
 	}
 
-	private VBox introPane(){
-		VBox introBox = new VBox();
-		introBox.setAlignment(Pos.CENTER);
-
-		Label label = new Label("Splash Chat (" + Globals.APP_VERSION + ")");
-		label.setId("intro-label");
-
-		Image image = new Image("splash logo.png");
-		ImageView icon = new ImageView();
-		icon.setImage(image);
-		icon.setEffect(dropShadow());
-		applyInOutTransition(icon);
-
-		HBox buttonBox = new HBox();
-		buttonBox.setAlignment(Pos.CENTER);
-		Button local = new Button("Local Pool");
-		local.setPrefHeight(50);
-		local.setOnAction(e -> {
-			new Thread(() -> {
-				client.startLocalConnection();}).start();
-		});
-
-		Button remote = new Button("Global Pool");
-		remote.setPrefHeight(50);
-		remote.setOnAction(e -> {
-			new Thread(() -> {
-				client.startRemoteConnection();}).start();
-		});
-
-		buttonBox.getChildren().addAll(local, remote);
-		introBox.getChildren().addAll(label, icon, buttonBox);
-
-
-		return introBox;
-	}
-
-	private VBox loadingPane(){
-		VBox loadingBox = new VBox();
-		Image image = new Image("loading.gif");
-		ImageView loading = new ImageView();
-		loadingBox.setStyle("-fx-background-color: #1c9cf2;");
-		loadingBox.setAlignment(Pos.CENTER);
-		loading.setImage(image);
-		loading.setFitWidth(480);
-		loading.setFitHeight(360);
-
-		applyInOutTransition(loading);
-
-		loadingBox.getChildren().add(loading);
-		return loadingBox;
-	}
-
-	private VBox retryPane(String ip){
-
-
-		VBox retryPane = new VBox();
-		retryPane.setPadding(new Insets(20));
-
-		TextField addressField = new TextField();
-		addressField.setPromptText("Enter ip address, like " + ip);
-
-		EventHandler<ActionEvent> event = new EventHandler<ActionEvent>() {
-			@Override public void handle(ActionEvent e) {
-				String newip = addressField.getText();
-				if(newip!=null && !newip.trim().equals("")){
-					client.retryConnection(newip);
-				}
-			}
-		};
-
-		addressField.setOnAction(event);
-
-		Button retryButton = new Button("Search Again");
-		retryButton.setPrefHeight(50);
-		retryButton.prefWidthProperty().bind(mainWindow.widthProperty());
-		retryButton.setOnAction((e) -> {
-			client.retryConnection(null);
-		});
-
-		Button manual = new Button("Connect Manually");
-		manual.setPrefHeight(50);
-		manual.prefWidthProperty().bind(mainWindow.widthProperty());
-		manual.setOnAction(event);
-
-		HBox buttonBox = new HBox();
-		buttonBox.getChildren().addAll(retryButton, manual);
-
-		retryPane.getChildren().addAll(addressField, buttonBox);
-		return retryPane;
-	}
-
-	private HBox textBox(){
-		HBox textBox = new HBox();
-		textBox.setAlignment(Pos.CENTER);
-		textBox.setPadding(new Insets(5));
-
-
-
-		TextField newCommand = new TextField();
-		newCommand.setPrefHeight(20);
-		newCommand.prefWidthProperty().bind(mainWindow.widthProperty().divide(1.5));
-		newCommand.setPromptText("Enter text");
-
-		Button button = new Button("Send");//("\u27a4");
-		button.setFont(Font.font(java.awt.Font.SANS_SERIF, 40));
-		button.setPadding(new Insets(0));
-		button.prefHeightProperty().bind(newCommand.heightProperty());
-
-
-		EventHandler<ActionEvent> submit = new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				if(!newCommand.getText().trim().equals("")){
-					client.handleInput(newCommand.getText());
-					newCommand.clear();
-				}
-			}
-		};
-
-		newCommand.setOnAction(submit);
-		button.setOnAction(submit);
-
-		Platform.runLater(new Runnable() {
-			public void run() {
-				newCommand.requestFocus();
-			}
-		});
-
-
-		textBox.getChildren().addAll(newCommand, button);
-		return textBox;
-
-	}
-
-	private ScrollPane chatPane(){
-		chatArea = new VBox();
-
-		chatAreaBox = new ScrollPane();
-
-		chatArea.heightProperty().addListener((observable, oldVal, newVal) ->{
-			chatAreaBox.setVvalue(((Double) newVal).doubleValue());
-		});
-
-		chatArea.prefWidthProperty().bind(chatAreaBox.widthProperty().subtract(20));
-		chatAreaBox.setContent(chatArea);
-
-		return chatAreaBox;
-	}
-
-	private DropShadow dropShadow(){
-
-		DropShadow ds = new DropShadow();
-		ds.setRadius(2);
-		ds.setOffsetX(0f);
-		ds.setOffsetY(2f);
-		ds.setColor(Color.color(0, 0, 0, 0.2f));
-
-		return ds;
-	}
-
-
-
-
+	
 
 }

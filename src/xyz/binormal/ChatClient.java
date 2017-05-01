@@ -4,9 +4,15 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.net.SocketException;
+import java.util.List;
+
 import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import xyz.binormal.ChatClientUI.SceneMode;
 
@@ -18,17 +24,23 @@ import xyz.binormal.ChatClientUI.SceneMode;
  */
 public class ChatClient extends Application{
 
+	private ChatClientUI ui;
+	
+	private Thread connectionThread;
 	private String myUsername;
 	private String nextMessage;
-	private String manualip;
-	
 	private Boolean nameSet = false;
-	private Boolean retry = false;
+	private Boolean disconnectNow;
 	
+	private Socket socket;
 	private DataInputStream fromServer;
 	private DataOutputStream toServer;
+	
 	protected InetAddress myAddress;
-	private ChatClientUI ui;
+	
+	
+	
+	private Stage mainWindow;
 	
 	/**
 	 * Boring stuff 
@@ -40,15 +52,60 @@ public class ChatClient extends Application{
 	@Override
 	public void start(Stage primaryStage) throws Exception {
 		
+		this.mainWindow = primaryStage;
+		this.loadUI();
+	
+		initiateScan();
 		
-		ui = new ChatClientUI(primaryStage, this);
-		
-		primaryStage.setTitle("Splash");
-		primaryStage.setScene(ui.getScene()); 
-		primaryStage.setOnCloseRequest((e) -> {System.exit(0);});
-		primaryStage.show();
+	}
 
-		ui.setSceneMode(SceneMode.INTRO);
+	private void loadUI() throws IOException{
+
+		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getClassLoader().getResource("Client.fxml"));
+		Parent root = (Parent)fxmlLoader.load();
+		
+		if(mainWindow!=null){
+			ui = (ChatClientUI) fxmlLoader.getController();
+			ui.setWindow(mainWindow);
+			ui.setOwner(this);
+		}
+
+		Scene mainScene = new Scene(root, 480, 480);
+		mainScene.getStylesheets().add("Styles.css");
+
+		Font.loadFont(getClass().getResourceAsStream("/RobotoSlab.ttf"), 14);
+		
+		mainWindow.setTitle("Splash");
+		mainWindow.setScene(mainScene); 
+		mainWindow.setOnCloseRequest((e) -> {
+			System.exit(0);
+		});
+		mainWindow.show();
+	}
+
+	/**
+	 * UI accessible functions
+	 */
+	protected void initiateScan(){
+		new Thread(() -> {
+			listServers();
+		}).start();
+	}
+	
+	protected void initiateConnection(InetAddress address, int port){
+		
+		if(connectionThread==null)
+			connectionThread = new Thread();
+		
+		
+		if(!connectionThread.isAlive()){
+			connectionThread = new Thread(() -> {
+				connectToServer(address, port);
+			});
+			connectionThread.start();
+		}else{
+			System.err.println("An active connection is already open!");
+		}
 	}
 	
 	/**
@@ -67,125 +124,97 @@ public class ChatClient extends Application{
 		return myAddress;
 		
 	}
-	
-	private InetAddress searchForServer(InetAddress myAddress) throws IOException{
-		
-		UDPBroadcaster bcast = new UDPBroadcaster();
-		InetAddress serverAddress;
-		
-		serverAddress = bcast.findAddress(Globals.DEFAULT_PORT, myAddress, 3600);
-		System.out.println("Server located at " + serverAddress.getHostAddress() + ".");
-		
-		return serverAddress;
-		
-	}
-	
 	/**
 	 * Start connection with local server
 	 */
-	protected void startLocalConnection(){
-
-		while(true){
-
-			try {
-				
-				if(manualip==null){
-					
-					ui.setSceneMode(SceneMode.LOADING);
-					ui.printText("Searching for Splash pools...");
-					
-					myAddress = myAddress();
-					InetAddress serverAddress = searchForServer(myAddress);
-					
-					ui.printText("Connecting...");
-					connectToServer(serverAddress, Globals.DEFAULT_PORT);
-					
-				}else{
-					connectToServer(InetAddress.getByName(manualip), Globals.DEFAULT_PORT);
-				}
-
-			} catch(Exception e){
-				
-				ui.setSceneMode(SceneMode.RETRY);
-				
-				if(e instanceof SocketTimeoutException){
-					System.err.println("Failed to locate server.");
-					ui.printText("None found. (This could be due to your network configuration.) Try entering the address manually.");
-			    }else{
-			    	e.printStackTrace();
-			    	ui.printText("Communication error. Retry?");
-			    }
-				
-				retry = false;
-				
-				try {
-					while(!retry){
-						Thread.sleep(100);
-					}
-				} catch (InterruptedException e1) {
-					e.printStackTrace();
-				}
-				
-				
-				continue;
-				
-			}
-			
-			
-		}
-	}
-	/**
-	 * Start connection with Globals.GLOBAL_HOST
-	 */
-	protected void startRemoteConnection(){
+	private void listServers(){
 
 		try {
-			connectToServer(InetAddress.getByName(Globals.GLOBAL_HOST), Globals.DEFAULT_PORT);
-		} catch (Exception e) {
+
+			this.disconnectNow = true;
+			
+			ui.loadScene(SceneMode.LOADING);
+			ui.printText("Searching for Splash pools...");
+
+			myAddress = myAddress();
+			List<SplashPool> serverList = new UDPBroadcaster().findAddresses(Globals.DEFAULT_PORT, myAddress, 800);
+			
+			if(!serverList.isEmpty()){
+				ui.showConnectionList(serverList);
+			}else{
+				ui.loadScene(SceneMode.RETRY_SEARCH);
+				System.err.println("Failed to locate server.");
+				ui.printText("None found. (This could be due to your network configuration.) You can try entering the address manually, if you know it.");
+			}
+			
+
+		} catch(Exception e){
+			ui.loadScene(SceneMode.RETRY_SEARCH);
 			e.printStackTrace();
-		}finally{
-			ui.printText("Whoops! Looks like the server is offline.");
-			//hideNode("bottom", "in");
+			ui.printText("Something went wrong while searching. Retry?");
+
 		}
 
-
-	}
-	/**
-	 * Called from ui, try again fool
-	 */
-	protected void retryConnection(String manualip){
-		this.retry = true;
-		this.manualip = manualip;
 	}
 	
 	/**
-	 * Initiate new connection!
+	 * Connect directly to specified address
 	 */
-	private void connectToServer(InetAddress address, int port) throws IOException, InterruptedException{
+	private void connectToServer(InetAddress address, int port){
 		
-		Socket socket = new Socket(address, port);
-		fromServer = new DataInputStream(socket.getInputStream());
-		toServer = new DataOutputStream(socket.getOutputStream());
-		
-		if(!nameSet){
-			ui.printText("Please enter a username:");
-			ui.setSceneMode(SceneMode.TEXT_ONLY);
-			
+		try{
+
+			disconnectNow = false;
+			socket = new Socket(address, port);
+			fromServer = new DataInputStream(socket.getInputStream());
+			toServer = new DataOutputStream(socket.getOutputStream());
+
+			if(!nameSet){
+				ui.printText("Please enter a username:");
+				ui.loadScene(SceneMode.ASK_USERNAME);
+
+			}else{
+				ui.printText("Reconnecting...");
+				setUsername(myUsername);
+			}
+
 			while(!nameSet){
 				Thread.sleep(100);
+				if(disconnectNow){ 
+					socket.close();
+					return;
+				}
 			}
-			
-		}
-		
-		ui.setSceneMode(SceneMode.CHAT);
-		ui.printText("Online (" + myUsername + ")");
 
-		while(socket.isConnected()){
-			listenForMessage();
-		}
+			ui.loadScene(SceneMode.CHAT);
+			ui.printText("Online (" + myUsername + ")");
 
-		socket.close();
-		
+			while(socket.isConnected() && !disconnectNow){
+				listenForMessage();
+			}
+
+			socket.close();
+
+		}catch(SocketException se){
+			System.out.println("Connection reset.");
+		}catch(Exception e){
+			ui.loadScene(SceneMode.RETRY_SEARCH);
+
+			e.printStackTrace();
+			ui.printText("Communication error!");
+		}
+	}
+	/**
+	 * Calls for any connection to be terminated
+	 */
+	protected void disconnectFromServer(){
+		System.out.println("Closing streams.");
+		this.disconnectNow=true;
+		try {
+			socket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	/**
 	 * Wait for message from server
@@ -216,40 +245,45 @@ public class ChatClient extends Application{
 
 		
 	}
+
 	/**
-	 * Called by UI to handle text input
+	 * Set and transmit user name to server
 	 */
-	protected void handleInput(String message){
-		
-		if(!nameSet){
+	protected void setUsername(String name){
+		try {
 			
-			try {
+			nameSet = false; 
+			sendMessage(name); // send username to server
+			
+			switch(fromServer.readInt()){ // check status of username
+			
+			case Globals.USERNAME_AVAILABLE: 
+				myUsername = name;
+				System.out.println("myUsername = " + myUsername);
+				nameSet = true; 
+				break;
+			
+			case Globals.USERNAME_TAKEN:
+				ui.printText("Whoops! You can't use that username. Please choose another.");
+				ui.loadScene(SceneMode.ASK_USERNAME);
+				break;
+			
+			case Globals.USERNAME_BANNED:
+				ui.printText("You have been banned from this server.");
+				ui.loadScene(SceneMode.NONE);
+				break;
 				
-				sendMessage(message); // send username to server
-				
-				if(!usernameTaken()){
-					myUsername = message;
-					System.out.println("myUsername = " + myUsername);
-					nameSet = true;
-				}else{
-					ui.printText("Whoops! You can't use that username. Please choose another.");
-				}
-				
-				
-			} catch (IOException e) {
-				e.printStackTrace();
 			}
 			
-		}else{
-			sendMessage(message);
+			
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		
-		
 	}
 	/**
 	 * Send message to server 
 	 */
-	private void sendMessage(String message){
+	protected void sendMessage(String message){
 		
 		int maxLength = (message.length() < Globals.MAX_SIZE)?message.length():Globals.MAX_SIZE;
 		nextMessage = message.substring(0, maxLength);
@@ -264,19 +298,7 @@ public class ChatClient extends Application{
 		}).start();
 		
     }
-	/**
-	 * Check with server if username is taken
-	 */	
-	private boolean usernameTaken() throws IOException{
-		
-		if (fromServer.readBoolean()){
-			return true;
-		}else{
-			nameSet = true;
-			return false;
-		}
-		
-	}
+	
 	
 	
     

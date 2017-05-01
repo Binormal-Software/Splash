@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -17,6 +18,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+
 
 /**
  * Server to Splash! can have infinite simultaneous connections!!!1!
@@ -26,6 +28,7 @@ public class ChatServer extends Application{
 	private final Client SERVER = new Client("Server");
 	private final Client ADMIN = new Client("Admin");
 	private List <Client> connectedClients;
+	private List <String> bannedUsers;
 	
 	private Socket tcpSocket;
 	private ServerSocket serverSocket;
@@ -48,17 +51,17 @@ public class ChatServer extends Application{
 
 		try{
 			mainWindow = primaryStage;
-			loadUI(mainWindow);}
+			loadUI();}
 		catch(IOException e){
 			e.printStackTrace();
-			System.err.println("Failed to load interface!");}
-
+			System.err.println("Failed to load interface!");
+		}
 
 		startServer();
 		
 	}
 	
-	private void loadUI(Stage stage) throws IOException{
+	private void loadUI() throws IOException{
 		
 		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getClassLoader().getResource("Server.fxml"));
 		Parent root = (Parent)fxmlLoader.load();
@@ -72,13 +75,13 @@ public class ChatServer extends Application{
 		Scene mainScene = new Scene(root, 600, 400);
 		mainScene.getStylesheets().add("Styles.css");
 		
-		stage.setTitle("Splash - Chat Server");
-		stage.setScene(mainScene); 
-		stage.setOnCloseRequest((e) -> {
-				printText("Stopping server...");
-	    	    System.exit(0);
-	    	});
-		stage.show();
+		mainWindow.setTitle("Splash - Chat Server");
+		mainWindow.setScene(mainScene); 
+		mainWindow.setOnCloseRequest((e) -> {
+			printText("Stopping server...");
+	    	System.exit(0);
+	    });
+		mainWindow.show();
 	}
 	
 	/**
@@ -95,6 +98,7 @@ public class ChatServer extends Application{
         }
         catch( Exception ex ){
         	printText("Problem creating socket on port " + Globals.DEFAULT_PORT );
+        	printText("Make sure you don't have another instance of this server running, or another program which uses this port.");
         }
 
         packet = new DatagramPacket (new byte[1], 1);
@@ -109,7 +113,8 @@ public class ChatServer extends Application{
                 
                 printText("Received ping from: " + clientAddress + ":" + clientPort);
                 
-                packet.setData (Globals.HANDSHAKE_MSG.getBytes()); // respond to broadcast
+                String fingerPrint = Globals.HANDSHAKE_MSG + ":" + Globals.APP_VERSION + ":" + Globals.DEFAULT_SERVER_NAME;
+                packet.setData (fingerPrint.getBytes()); // respond to broadcast
                 udpSocket.send (packet);
                 
             }
@@ -149,59 +154,58 @@ public class ChatServer extends Application{
 	 */
     private void connectToClient(Client client){
     	
-    	String username = "Unknown";
+    	String username = "Unknown User";
+    	byte[] buffer = new byte[128];
     	
     	try {
     		
-    		byte[] buffer;
-    		boolean usernameTaken;
+    		int usernameStatus;
+    		
     		do{
-    			buffer = new byte[128];
+   
     			client.getInputStream().read(buffer);
+    			username = new String(buffer).trim();
     			
-    			usernameTaken = usernameReserved(new String(buffer).trim());
+    			usernameStatus = Globals.USERNAME_AVAILABLE;
+    			if(usernameReserved(username.toLowerCase())) usernameStatus = Globals.USERNAME_TAKEN;
+    			if(bannedUsers.contains(username.toLowerCase())) usernameStatus = Globals.USERNAME_BANNED;
     			
-    			client.getOutputStream().writeBoolean(usernameTaken);
+    			client.getOutputStream().writeInt(usernameStatus); // report to client status of username
+    			buffer = new byte[128];
     			
-    		}while(usernameTaken);
+    		}while(usernameStatus!=Globals.USERNAME_AVAILABLE);
 
-    		username = new String(buffer).trim();
     		client.setUsername(username);
 			connectedClients.add(client);
 			
 			if(connectedClients.size() > 1){
-				sendMessage(client.getUsername() + " jumped in! (" + connectedClients.size() + " currently online)", SERVER);
+				broadcastMessage(client.getUsername() + " jumped in! (" + connectedClients.size() + " currently online)", SERVER);
 			}else{
-				sendMessage("Welcome to the server, " + client.getUsername() + "! (There is no one else currently online)", SERVER);
+				broadcastMessage("Welcome to the server, " + client.getUsername() + "! (There is no one else currently online)", SERVER);
 			}
 			
-			while(client.getSocket().isConnected()){
-								
-				buffer = new byte[128];
-				client.getInputStream().read(buffer);
+			while(client.getInputStream().read(buffer)!=-1){  // main listen loop
+
 				String message = new String(buffer).trim();
-				this.sendMessage(message, client);
-				
+				broadcastMessage(message, client);
 				processClientCommand(message);
-				
+
 				if(ai.engaged()){
-					this.sendMessage(ai.getResponse(message), SERVER);
+					this.broadcastMessage(ai.getResponse(message), SERVER);
 				}
 				
-				
-				
-				
-				
+				buffer = new byte[128];
+
 			}
-			
+
 		} catch (SocketException e) {
-			printText(username + " disconnected.");
+			printText("Connection reset.");
 		} catch (Exception e){
 			printText("Connection error! " + client.getUsername() + " disconnected.");
 			e.printStackTrace();
 		} finally{
 			if(client.getUsername()!=null)
-				sendMessage(client.getUsername() + " left.", SERVER);
+				broadcastMessage(client.getUsername() + " left.", SERVER);
 			connectedClients.remove(client);
 		}
     	
@@ -210,46 +214,69 @@ public class ChatServer extends Application{
     /**
 	 * Send a message to all clients
 	 */
-    private void sendMessage(String message, Client sender){
+    private void broadcastMessage(String message, Client sender){
     	
-    	printText(sender.getUsername() + ": " + message);
-    	
-    	new Thread(() -> {
+    	printText("" + sender.getUsername() + ": " + message);
 
-    		for(Client c : connectedClients){
-    			try {
-    				c.getOutputStream().write((sender.getUsername() + ":" + message + ":" + sender.getThemeColor()).getBytes());
-    			} catch (IOException e) {
-    				e.printStackTrace();
-    			}
-    		}
-
-    	}).start();
+    	for(Client c : connectedClients){
+    		c.sendMessage(message, sender);
+    	}
     	
     }
+   
+    
     /**
 	 * Client being a turd? No problem! 
 	 */
     private void kickUser(String user){
-    	printText("Kicking user '" + user + "'");
-    	
-    	for(Client c : connectedClients){
-    		if(c.getUsername().toLowerCase().equals(user.toLowerCase())){
-    			try {
-					c.disconnect();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-    		}
+    	if(getClientByUsername(user)!=null){
+    		getClientByUsername(user).disconnect();
+    		printText("'" + user + "' was kicked.");
+    	}else{
+    		printText("No user named '" + user + "' is online.");
     	}
     	
+    }
+    /**
+	 * Ban user 4ever.exe
+	 */
+    private void banUser(String user){
+    	bannedUsers.add(user.toLowerCase());
+    	printText("'" + user + "' banned from server.");
+    	try{getClientByUsername(user).disconnect();}
+    	catch(NoSuchElementException ne){}
+    }
+    /**
+	 * Having second thoughts?
+	 */
+    private void unbanUser(String user){
+    	if(bannedUsers.contains(user.toLowerCase())){
+    		bannedUsers.remove(user.toLowerCase());
+    		printText("'" + user + "' unbanned from server.");
+    	}else{
+    		printText("'" + user + "' is not currently banned!");
+    	}
+    	
+    	
+    }
+    /**
+	 * Get client instance by username 
+     * @throws NoSuchElementException 
+	 */
+    private Client getClientByUsername(String username) throws NoSuchElementException{
+    	for(Client c : connectedClients){
+    		if(c.getUsername().toLowerCase().equals(username.toLowerCase())){
+				return c;
+    		}
+    	}
+    	throw new NoSuchElementException("The specified client could not be found");
     }
     
     /**
 	 * Shut down threads and attempt to disconnect from clients
 	 */
     protected void stopServer(){
-    	sendMessage("Server is shutting down.", SERVER);
+    	broadcastMessage("Server is shutting down.", SERVER);
     	serverStopped = true;
     	
     	try {
@@ -277,6 +304,7 @@ public class ChatServer extends Application{
     	
     	ai = new ChatAI();
 		connectedClients = new ArrayList<Client>();
+		bannedUsers = new ArrayList<String>();
 		printText("Launching server...");
 		
 		new Thread(() -> {waitForPing();}).start();
@@ -291,25 +319,43 @@ public class ChatServer extends Application{
     	processClientCommand(input);
     	
     	if(!input.startsWith("/")){
-    		sendMessage(input, ADMIN);
+    		broadcastMessage(input, ADMIN);
     		return;
     	}
     	
-    	input = input.substring(1);
-    	String[] command = input.split(" ");
+    	printText(input);
+    	String[] command = input.substring(1).split(" ");
     	
-    	switch(command[0]){
-    	
-    	
-    	case "kick": kickUser(command[1]); break;
-    	case "online": 
-    		
-    		printText("Online users:");
-    		for(Client c: connectedClients){
-    			printText(c.getUsername());
+    	try{
+
+    		switch(command[0]){
+
+    		case "message": 
+    			String message = "";
+    			for(int i = 2; i < command.length; i++) message += command[i] + " ";
+    			getClientByUsername(command[1]).sendMessage(message, ADMIN);
+    			break;
+
+    		case "ban": banUser(command[1]); break;
+
+    		case "unban" : unbanUser(command[1]); break;
+
+    		case "kick": kickUser(command[1]); break;
+
+    		case "online": 
+
+    			printText("Online users:");
+    			for(Client c: connectedClients){
+    				printText(c.getUsername());
+    			}
+    			break;
+
+
+
     		}
-    		break;
-    	
+
+    	}catch(NoSuchElementException ne){
+    		printText(ne.getMessage());
     	}
     	
     	
@@ -321,12 +367,12 @@ public class ChatServer extends Application{
     	
     	if(input.toLowerCase().contains("ai.disengage")){
 			ai.disengage();
-			this.sendMessage("AI program disengaged", SERVER);
+			this.broadcastMessage("AI program disengaged", SERVER);
 			return;
 		}
     	if(input.toLowerCase().contains("ai.engage")){
 			ai.engage();
-			this.sendMessage("AI program engaged", SERVER);
+			this.broadcastMessage("AI program engaged", SERVER);
 			return;
 		}
 		
@@ -349,12 +395,15 @@ public class ChatServer extends Application{
     	
     	ArrayList <String> reserved = new ArrayList<String>();
     	reserved.add("admin");
+    	reserved.add("adm1n");
+    	reserved.add("admln");
     	reserved.add("server");
     	reserved.add("moderator");
-    	reserved.add("mod");
     	
-    	if (reserved.contains(username)){
-    		return true;
+    	for(String reservedName : reserved){
+    		if(username.contains(reservedName)){
+    			return true;
+    		}
     	}
     	
     	for(Client c : connectedClients){
@@ -404,8 +453,32 @@ class Client{
 		this.username = username;
 	}
 	
-	public void disconnect() throws IOException{
-		socket.close();
+	public void sendMessage(String message, Client sender){
+		if(message==null || message.trim().equals("") || sender==null){
+    		return;
+    	}
+    	
+		new Thread(() -> {
+
+			try {
+				this.getOutputStream().write((sender.getUsername() + ":" + message + ":" + sender.getThemeColor()).getBytes());
+			}catch(SocketException se){
+				this.disconnect();
+			}catch (IOException e) {
+				e.printStackTrace();
+				this.disconnect();
+			}
+			
+		}).start();
+    	
+	}
+	
+	public void disconnect(){
+		try {
+			socket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public String getUsername(){

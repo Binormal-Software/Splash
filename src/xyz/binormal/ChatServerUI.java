@@ -36,7 +36,6 @@ public class ChatServerUI implements Initializable {
 	 */
 	public void printText(String message){
     	
-    	
     	Platform.runLater(new Runnable() {
     	    public void run() {
     	    	if(!Globals.SERVER_HEADLESS)
@@ -44,7 +43,6 @@ public class ChatServerUI implements Initializable {
     	    	System.out.println(message);
     	    }
     	});
-    	
     	
     }
 	/**

@@ -10,7 +10,7 @@ import java.util.Random;
  * @author Ryan Rodriguez
  *
  */
-public class ChatAI {
+public class ChatAI implements Runnable{
 
 	private boolean active;
 	
@@ -46,7 +46,7 @@ public class ChatAI {
 		
 		input = input.trim().toLowerCase();
 		
-		if(this.inputContainsType(input, thirdPersonWords())){
+		if(this.inputContainsType(input, secondPersonWords())){
 			if(this.inputContainsType(input, goodWords())){
 				return "Thank you!";
 			}
@@ -139,7 +139,7 @@ public class ChatAI {
 		return response;
 	}
 	
-	private ArrayList<String> thirdPersonWords(){
+	private ArrayList<String> secondPersonWords(){
 		
 		ArrayList<String> response = new ArrayList<String>();
 		response.add("you are");
@@ -150,6 +150,12 @@ public class ChatAI {
 		response.add("youre");
 		
 		return response;
+	}
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		
 	}
 	
 }
