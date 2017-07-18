@@ -113,8 +113,7 @@ public class ChatServer extends Application{
                 
                 printText("Received ping from: " + clientAddress + ":" + clientPort);
                 
-                String fingerPrint = Globals.HANDSHAKE_MSG + ":" + Globals.APP_VERSION + ":" + Globals.DEFAULT_SERVER_NAME;
-                packet.setData (fingerPrint.getBytes()); // respond to broadcast
+                packet.setData (Utils.getFingerprint(Globals.HANDSHAKE_MSG, Globals.APP_VERSION, Globals.DEFAULT_SERVER_NAME)); // respond to broadcast
                 udpSocket.send (packet);
                 
             }

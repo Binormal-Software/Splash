@@ -15,6 +15,9 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import xyz.binormal.ChatClientUI.SceneMode;
+import xyz.binormal.Connectable;
+import xyz.binormal.UDPBroadcaster;
+import xyz.binormal.InterfaceLocator;
 
 //TODO bugs: none that I'm aware of
 
@@ -37,8 +40,6 @@ public class ChatClient extends Application{
 	private DataOutputStream toServer;
 	
 	protected InetAddress myAddress;
-	
-	
 	
 	private Stage mainWindow;
 	
@@ -137,7 +138,7 @@ public class ChatClient extends Application{
 			ui.printText("Searching for Splash pools...");
 
 			myAddress = myAddress();
-			List<SplashPool> serverList = new UDPBroadcaster().findAddresses(Globals.DEFAULT_PORT, myAddress, 800);
+			List<Connectable> serverList = new UDPBroadcaster(Globals.HANDSHAKE_MSG).findAddresses(Globals.DEFAULT_PORT, myAddress, 800);
 			
 			if(!serverList.isEmpty()){
 				ui.showConnectionList(serverList);

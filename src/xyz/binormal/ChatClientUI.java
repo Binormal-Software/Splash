@@ -120,14 +120,14 @@ public class ChatClientUI implements Initializable{
 		
 	}
 	
-	public void showConnectionList(List<SplashPool> serverList){
+	public void showConnectionList(List<Connectable> serverList){
 		
 		printText("Testing the water...");
 		
 		VBox serverBox = new VBox();
 		serverBox.setAlignment(Pos.CENTER);
 		
-		for(SplashPool splashPool: serverList){
+		for(Connectable splashPool: serverList){
 			Button connectButton = new Button(
 					splashPool.getName() + " (version " + splashPool.serverVersion() + ")" 
 					+ "\r\n" + "(" + splashPool.getInetAddress().getHostAddress() + ")");
