@@ -6,6 +6,12 @@
   <packaging>pom</packaging>
   <name>Splash</name>
   <description>Client/Server</description>
+  <repositories>
+	<repository>
+	   <id>jitpack.io</id>
+	   <url>https://jitpack.io</url>
+	</repository>
+  </repositories>
   <build>
     <sourceDirectory>src</sourceDirectory>
     <resources>
@@ -29,12 +35,9 @@
   </build>
   <dependencies>
   	<dependency>
-  		<groupId>NetworkUtils</groupId>
-  		<artifactId>NetworkUtils</artifactId>
-  		<version>0.0.1-SNAPSHOT</version>
+  		<groupId>com.github.Binormal-Software</groupId>
+	    <artifactId>NetworkUtils</artifactId>
+	    <version>v1.0-alpha</version>
   	</dependency>
   </dependencies>
-  <modules>
-  	<module>lib/NetworkUtils</module>
-  </modules>
 </project>
