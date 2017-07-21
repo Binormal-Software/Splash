@@ -130,7 +130,7 @@ public class ChatClient extends Application{
 	 */
 	private void listServers(){
 
-		try {
+		try(UDPBroadcaster broadcaster = new UDPBroadcaster(Globals.HANDSHAKE_MSG)){
 
 			this.disconnectNow = true;
 			
@@ -138,7 +138,7 @@ public class ChatClient extends Application{
 			ui.printText("Searching for Splash pools...");
 
 			myAddress = myAddress();
-			List<Connectable> serverList = new UDPBroadcaster(Globals.HANDSHAKE_MSG).findAddresses(Globals.DEFAULT_PORT, myAddress, 800);
+			List<Connectable> serverList = broadcaster.findAddresses(Globals.DEFAULT_PORT, myAddress, 800);
 			
 			if(!serverList.isEmpty()){
 				ui.showConnectionList(serverList);
@@ -212,7 +212,8 @@ public class ChatClient extends Application{
 		System.out.println("Closing streams.");
 		this.disconnectNow=true;
 		try {
-			socket.close();
+			if(socket!=null)
+				socket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
