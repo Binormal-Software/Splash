@@ -3,6 +3,7 @@
   <groupId>Splash</groupId>
   <artifactId>Splash</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
   <name>Splash</name>
   <description>Client/Server</description>
   <build>
@@ -33,4 +34,7 @@
   		<version>0.0.1-SNAPSHOT</version>
   	</dependency>
   </dependencies>
+  <modules>
+  	<module>lib/NetworkUtils</module>
+  </modules>
 </project>
