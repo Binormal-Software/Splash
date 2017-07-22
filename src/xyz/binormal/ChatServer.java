@@ -63,7 +63,7 @@ public class ChatServer extends Application{
 	
 	private void loadUI() throws IOException{
 		
-		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getClassLoader().getResource("Server.fxml"));
+		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("res/Server.fxml"));
 		Parent root = (Parent)fxmlLoader.load();
 		
 		if(mainWindow!=null){
@@ -73,7 +73,7 @@ public class ChatServer extends Application{
 		}
 		
 		Scene mainScene = new Scene(root, 600, 400);
-		mainScene.getStylesheets().add("Styles.css");
+		mainScene.getStylesheets().add(getClass().getResource("res/Styles.css").toExternalForm());
 		
 		mainWindow.setTitle("Splash - Chat Server");
 		mainWindow.setScene(mainScene); 

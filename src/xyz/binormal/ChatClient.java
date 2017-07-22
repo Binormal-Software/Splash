@@ -62,7 +62,7 @@ public class ChatClient extends Application{
 
 	private void loadUI() throws IOException{
 
-		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getClassLoader().getResource("Client.fxml"));
+		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("res/Client.fxml"));
 		Parent root = (Parent)fxmlLoader.load();
 		
 		if(mainWindow!=null){
@@ -72,9 +72,9 @@ public class ChatClient extends Application{
 		}
 
 		Scene mainScene = new Scene(root, 480, 480);
-		mainScene.getStylesheets().add("Styles.css");
-
-		Font.loadFont(getClass().getResourceAsStream("/RobotoSlab.ttf"), 14);
+		
+		mainScene.getStylesheets().add(getClass().getResource("res/Styles.css").toExternalForm());
+		Font.loadFont(getClass().getResourceAsStream("res/RobotoSlab.ttf"), 14);
 		
 		mainWindow.setTitle("Splash");
 		mainWindow.setScene(mainScene); 
